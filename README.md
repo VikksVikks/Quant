@@ -1,3 +1,3 @@
 # Quant
-Quantitative Projects
+Quantitative Projects in Python
 Currently merging from bitbucket
