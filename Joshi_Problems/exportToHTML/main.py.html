@@ -1,0 +1,293 @@
+<html>
+<head>
+<title>main.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #808080;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #cc7832;}
+.s3 { color: #6897bb;}
+.s4 { color: #6a8759;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+main.py</font>
+</center></td></tr></table>
+<pre><span class="s0"># import ExoticOption</span>
+<span class="s2">import </span><span class="s1">numpy </span><span class="s2">as </span><span class="s1">np</span>
+
+
+<span class="s0"># product spec</span>
+<span class="s0"># Payoff to define calls/puts etc</span>
+<span class="s0"># possibility of params being arrays !</span>
+<span class="s2">class </span><span class="s1">PathGenerator():</span>
+    <span class="s2">def </span><span class="s1">__init__(self</span><span class="s2">, </span><span class="s1">spot</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">d</span><span class="s2">, </span><span class="s1">vol</span><span class="s2">, </span><span class="s1">times):</span>
+        <span class="s1">self._spot = spot</span>
+        <span class="s1">self._log_spot = np.log(self._spot)</span>
+        <span class="s1">self._r = r</span>
+        <span class="s1">self._d = d</span>
+        <span class="s1">self._vol = vol  </span><span class="s0"># annual volatility</span>
+        <span class="s1">self._times = times  </span><span class="s0"># averaging period</span>
+        <span class="s1">self._times_num = len(self._times)</span>
+        <span class="s1">self._generator = Generator(len(self._times))</span>
+        <span class="s1">self._variance = self._vol ** </span><span class="s3">2</span>
+
+        <span class="s0"># path set up:</span>
+        <span class="s1">self.spot_values = np.zeros(self._times_num)</span>
+
+    <span class="s2">def </span><span class="s1">get_path(self):</span>
+        <span class="s1">variates = self._generator.get_gaussians()</span>
+
+        <span class="s1">current_log_spot = np.log(self._spot)  </span><span class="s0"># initial value</span>
+        <span class="s1">spot_values = np.zeros(self._times_num)</span>
+        <span class="s0"># Initial Step:</span>
+        <span class="s1">drift = self._r - self._d - </span><span class="s3">0.5 </span><span class="s1">* self._vol ** </span><span class="s3">2</span>
+        <span class="s1">dt = self._times[</span><span class="s3">0</span><span class="s1">]</span>
+        <span class="s0"># log(s_0) + drift</span>
+        <span class="s1">current_log_spot = self._log_spot + drift * dt + self._vol * np.sqrt(dt) * variates[</span><span class="s3">0</span><span class="s1">]</span>
+        <span class="s1">spot_values[</span><span class="s3">0</span><span class="s1">] = np.exp(current_log_spot)</span>
+        <span class="s0"># from 1 since we have original jump already.</span>
+
+        <span class="s0"># slow part this loop can be re-written as Matrix manipulation to be faster</span>
+        <span class="s0"># I have already array of variates so applying array x array to get individual path components will speed things up.</span>
+        <span class="s2">for </span><span class="s1">j </span><span class="s2">in </span><span class="s1">range(</span><span class="s3">1</span><span class="s2">, </span><span class="s1">self._times_num):</span>
+            <span class="s1">dt = self._times[j] - self._times[j - </span><span class="s3">1</span><span class="s1">]</span>
+            <span class="s1">current_log_spot += drift * dt + self._vol * np.sqrt(dt) * variates[j]</span>
+            <span class="s1">spot_values[j] = np.exp(current_log_spot)</span>
+        <span class="s1">self.spot_values = spot_values</span>
+
+
+<span class="s2">class </span><span class="s1">Generator:</span>
+    <span class="s2">def </span><span class="s1">__init__(self</span><span class="s2">, </span><span class="s1">length=</span><span class="s3">1</span><span class="s1">):</span>
+        <span class="s1">self._length = length</span>
+
+    <span class="s2">def </span><span class="s1">get_gaussians(self):</span>
+        <span class="s1">variates = np.random.normal(size=self._length)</span>
+        <span class="s2">return </span><span class="s1">variates</span>
+
+
+<span class="s0"># product spec</span>
+<span class="s0"># Payoff to define calls/puts etc</span>
+<span class="s2">class </span><span class="s1">Payoff:</span>
+    <span class="s2">def </span><span class="s1">__init__(self</span><span class="s2">, </span><span class="s1">strike):</span>
+        <span class="s1">self._strike = strike</span>
+
+
+<span class="s2">class </span><span class="s1">PayoffCall(Payoff):</span>
+    <span class="s2">def </span><span class="s1">__init__(self</span><span class="s2">, </span><span class="s1">strike):</span>
+        <span class="s1">self._strike = strike</span>
+
+    <span class="s2">def </span><span class="s1">get_payoff(self</span><span class="s2">, </span><span class="s1">spot):</span>
+        <span class="s2">return </span><span class="s1">max(spot - self._strike</span><span class="s2">, </span><span class="s3">0</span><span class="s1">)</span>
+
+
+<span class="s2">class </span><span class="s1">PayoffPut(Payoff):</span>
+    <span class="s2">def </span><span class="s1">__init__(self</span><span class="s2">, </span><span class="s1">strike):</span>
+        <span class="s1">self._strike = strike</span>
+
+    <span class="s2">def </span><span class="s1">get_payoff(self</span><span class="s2">, </span><span class="s1">spot):</span>
+        <span class="s2">return </span><span class="s1">max(self._strike - spot</span><span class="s2">, </span><span class="s3">0</span><span class="s1">)</span>
+
+<span class="s0"># Product Specs</span>
+<span class="s0"># if we have more types move strike, expiry etc to base Product and</span>
+<span class="s2">class </span><span class="s1">Product:</span>
+    <span class="s2">def </span><span class="s1">__init__(self):</span>
+        <span class="s2">pass</span>
+
+    <span class="s2">def </span><span class="s1">cash_flow(spot_values):</span>
+        <span class="s2">pass</span>
+
+
+<span class="s2">class </span><span class="s1">AsianOption(Product):</span>
+    <span class="s2">def </span><span class="s1">__init__(self</span><span class="s2">, </span><span class="s1">expiry</span><span class="s2">, </span><span class="s1">strike</span><span class="s2">, </span><span class="s1">payoff):</span>
+        <span class="s0">#super.__init__()</span>
+        <span class="s1">self.strike = strike</span>
+        <span class="s1">self.expiry = expiry</span>
+        <span class="s1">self.payoff = payoff</span>
+
+    <span class="s2">def </span><span class="s1">get_cashflow(self</span><span class="s2">, </span><span class="s1">spot_values):</span>
+        <span class="s1">spot_sum = np.sum(spot_values)  </span><span class="s0"># Sum j=1...n over setting dates</span>
+        <span class="s1">spot_mean = spot_sum / len(spot_values)  </span><span class="s0"># take a avg</span>
+        <span class="s1">cashflow = self.payoff.get_payoff(spot_mean)</span>
+        <span class="s2">return </span><span class="s1">cashflow</span>
+
+
+<span class="s2">class </span><span class="s1">BarrierDownOut(Product):</span>
+    <span class="s2">def </span><span class="s1">__init__(self</span><span class="s2">, </span><span class="s1">expiry</span><span class="s2">, </span><span class="s1">strike</span><span class="s2">, </span><span class="s1">barrier</span><span class="s2">, </span><span class="s1">payoff):</span>
+        <span class="s1">self.strike = strike</span>
+        <span class="s1">self.expiry = expiry</span>
+        <span class="s1">self.barrier = barrier</span>
+        <span class="s1">self.payoff = payoff</span>
+
+    <span class="s2">def </span><span class="s1">get_cashflow(self</span><span class="s2">, </span><span class="s1">spot_values):</span>
+        <span class="s0"># check for barrier in whole path for knock out part</span>
+        <span class="s2">for </span><span class="s1">val </span><span class="s2">in </span><span class="s1">spot_values:</span>
+            <span class="s2">if </span><span class="s1">(val &lt;= self.barrier):</span>
+                <span class="s2">return </span><span class="s3">0</span>
+        <span class="s0"># did not hit barrier do payout:</span>
+        <span class="s1">final_spot = spot_values[-</span><span class="s3">1</span><span class="s1">]</span>
+        <span class="s1">cashflow = self.payoff.get_payoff(final_spot)</span>
+        <span class="s2">return </span><span class="s1">cashflow</span>
+
+
+<span class="s2">class </span><span class="s1">BarrierDownIn(Product):</span>
+    <span class="s2">def </span><span class="s1">__init__(self</span><span class="s2">, </span><span class="s1">expiry</span><span class="s2">, </span><span class="s1">strike</span><span class="s2">, </span><span class="s1">barrier</span><span class="s2">, </span><span class="s1">payoff):</span>
+        <span class="s1">self.strike = strike</span>
+        <span class="s1">self.expiry = expiry</span>
+        <span class="s1">self.barrier = barrier</span>
+        <span class="s1">self.payoff = payoff</span>
+
+    <span class="s2">def </span><span class="s1">get_cashflow(self</span><span class="s2">, </span><span class="s1">spot_values):</span>
+        <span class="s0"># check for barrier in whole path and enable it</span>
+
+        <span class="s2">for </span><span class="s1">val </span><span class="s2">in </span><span class="s1">spot_values:</span>
+            <span class="s0"># enabled check for price:</span>
+            <span class="s2">if </span><span class="s1">(val &lt;= self.barrier):</span>
+                <span class="s1">final_spot = spot_values[-</span><span class="s3">1</span><span class="s1">]</span>
+                <span class="s1">cashflow = self.payoff.get_payoff(final_spot)</span>
+                <span class="s2">return </span><span class="s1">cashflow</span>
+        <span class="s2">return </span><span class="s3">0</span>
+
+
+<span class="s0"># calls path generator</span>
+<span class="s0"># calls product definition</span>
+<span class="s0"># discounts cash flow back to time zero</span>
+<span class="s0"># averages result of all sims</span>
+
+<span class="s0"># since engine is for exotics no need to have abstract base</span>
+<span class="s2">class </span><span class="s1">ControlEngine():</span>
+    <span class="s2">def </span><span class="s1">__init__(self</span><span class="s2">, </span><span class="s1">vol</span><span class="s2">, </span><span class="s1">d</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">spot</span><span class="s2">, </span><span class="s1">product</span><span class="s2">, </span><span class="s1">generator):</span>
+        <span class="s1">self._vol = vol</span>
+        <span class="s1">self._d = d</span>
+        <span class="s1">self._r = r</span>
+        <span class="s1">self._spot = spot</span>
+        <span class="s1">self._product = product</span>
+        <span class="s1">self._T = product.expiry</span>
+
+        <span class="s1">self._generator = generator  </span><span class="s0"># PathGenerator(spot, r, d , vol, times)</span>
+        <span class="s0"># self._times = product.times</span>
+
+        <span class="s0"># self._number_of_times = len(times)</span>
+        <span class="s1">self._discount = np.exp(-self._r + self._d) * product.expiry  </span><span class="s0"># only one discount - European !!!</span>
+
+        <span class="s1">self._price_list = []</span>
+        <span class="s1">self.cum_avg_list = []</span>
+        <span class="s1">self.sqrt_err = </span><span class="s3">0</span>
+        <span class="s1">self.option_price = </span><span class="s3">0</span>
+        <span class="s1">self.last_path = </span><span class="s3">0</span>
+
+    <span class="s2">def </span><span class="s1">run_simulation(self</span><span class="s2">, </span><span class="s1">n_sims):</span>
+        <span class="s1">self.price_list = []</span>
+        <span class="s1">self.cum_avg_list = []</span>
+        <span class="s2">for </span><span class="s1">j </span><span class="s2">in </span><span class="s1">range(</span><span class="s3">0</span><span class="s2">, </span><span class="s1">n_sims):</span>
+            <span class="s0"># generate path calls gen</span>
+            <span class="s1">self._generator.get_path()</span>
+            <span class="s1">self.last_path = self._generator.spot_values</span>
+            <span class="s0"># create cashflow</span>
+            <span class="s1">cashflow = self._product.get_cashflow(self._generator.spot_values)</span>
+            <span class="s0"># discount cashflow</span>
+            <span class="s1">price = cashflow * self._discount</span>
+            <span class="s0"># we wish to return inter averages as well:</span>
+            <span class="s1">self.price_list.append(price)  </span><span class="s0"># price of individual sim results</span>
+
+            <span class="s1">self.cum_avg_list.append(np.mean(self.price_list))  </span><span class="s0"># running average</span>
+
+        <span class="s1">self.option_price = (np.mean(self.price_list))</span>
+
+        <span class="s1">variance = (</span><span class="s3">1 </span><span class="s1">/ (len(self.price_list) - </span><span class="s3">1</span><span class="s1">)) * np.sum((self.price_list - self.option_price) ** </span><span class="s3">2</span><span class="s1">)</span>
+        <span class="s1">self.sqrt_err = np.sqrt(variance) / len(self.price_list)</span>
+
+        <span class="s2">return </span><span class="s1">self.option_price</span>
+
+
+<span class="s2">def </span><span class="s1">get_times(freq):</span>
+    <span class="s1">times = np.zeros(freq)</span>
+
+    <span class="s2">for </span><span class="s1">i </span><span class="s2">in </span><span class="s1">range(len(times)):</span>
+        <span class="s1">times[i] = (i + </span><span class="s3">1</span><span class="s1">) * </span><span class="s3">1 </span><span class="s1">/ freq</span>
+    <span class="s2">return </span><span class="s1">times</span>
+
+
+<span class="s0"># Constants and Run Dicts</span>
+<span class="s1">S = </span><span class="s3">100</span>
+<span class="s1">vol = </span><span class="s3">0.1</span>
+<span class="s1">r = </span><span class="s3">0.05</span>
+<span class="s1">d = </span><span class="s3">0.03</span>
+<span class="s1">K = </span><span class="s3">103</span>
+<span class="s1">T = </span><span class="s3">1</span>
+<span class="s1">Barrier = </span><span class="s3">80</span>
+
+<span class="s1">Asian_Dict = {</span><span class="s4">'Task1'</span><span class="s1">: {</span><span class="s4">'option'</span><span class="s1">: AsianOption</span><span class="s2">, </span><span class="s4">'payoff'</span><span class="s1">: PayoffCall</span><span class="s2">, </span><span class="s4">'freq'</span><span class="s1">: </span><span class="s3">12</span><span class="s1">}</span><span class="s2">,</span>
+              <span class="s4">'Task2'</span><span class="s1">: {</span><span class="s4">'option'</span><span class="s1">: AsianOption</span><span class="s2">, </span><span class="s4">'payoff'</span><span class="s1">: PayoffCall</span><span class="s2">, </span><span class="s4">'freq'</span><span class="s1">: </span><span class="s3">4</span><span class="s1">}</span><span class="s2">,</span>
+              <span class="s4">'Task3'</span><span class="s1">: {</span><span class="s4">'option'</span><span class="s1">: AsianOption</span><span class="s2">, </span><span class="s4">'payoff'</span><span class="s1">: PayoffCall</span><span class="s2">, </span><span class="s4">'freq'</span><span class="s1">: </span><span class="s3">52</span><span class="s1">}</span>
+              <span class="s1">}</span>
+
+<span class="s1">Barrier_Dict = {</span><span class="s4">'Task1'</span><span class="s1">: {</span><span class="s4">'option'</span><span class="s1">: BarrierDownOut</span><span class="s2">, </span><span class="s4">'payoff'</span><span class="s1">: PayoffCall</span><span class="s2">, </span><span class="s4">'barrier'</span><span class="s1">: </span><span class="s3">80</span><span class="s2">, </span><span class="s4">'freq'</span><span class="s1">: </span><span class="s3">12</span><span class="s1">}</span><span class="s2">,</span>
+                <span class="s4">'Task2'</span><span class="s1">: {</span><span class="s4">'option'</span><span class="s1">: BarrierDownIn</span><span class="s2">, </span><span class="s4">'payoff'</span><span class="s1">: PayoffCall</span><span class="s2">, </span><span class="s4">'barrier'</span><span class="s1">: </span><span class="s3">80</span><span class="s2">, </span><span class="s4">'freq'</span><span class="s1">: </span><span class="s3">12</span><span class="s1">}</span><span class="s2">,</span>
+                <span class="s4">'Task3'</span><span class="s1">: {</span><span class="s4">'option'</span><span class="s1">: BarrierDownOut</span><span class="s2">, </span><span class="s4">'payoff'</span><span class="s1">: PayoffPut</span><span class="s2">, </span><span class="s4">'barrier'</span><span class="s1">: </span><span class="s3">80</span><span class="s2">, </span><span class="s4">'freq'</span><span class="s1">: </span><span class="s3">12</span><span class="s1">}</span><span class="s2">,</span>
+                <span class="s4">'Task4'</span><span class="s1">: {</span><span class="s4">'option'</span><span class="s1">: BarrierDownOut</span><span class="s2">, </span><span class="s4">'payoff'</span><span class="s1">: PayoffPut</span><span class="s2">, </span><span class="s4">'barrier'</span><span class="s1">: </span><span class="s3">120</span><span class="s2">,</span>
+                          <span class="s4">'freq'</span><span class="s1">: [</span><span class="s3">0.05</span><span class="s2">, </span><span class="s3">0.15</span><span class="s2">, </span><span class="s3">0.25</span><span class="s2">, </span><span class="s3">0.35</span><span class="s2">, </span><span class="s3">0.45</span><span class="s2">, </span><span class="s3">0.55</span><span class="s2">,</span>
+                                   <span class="s3">0.65</span><span class="s2">, </span><span class="s3">0.75</span><span class="s2">, </span><span class="s3">0.85</span><span class="s2">, </span><span class="s3">0.95</span><span class="s2">, </span><span class="s3">1</span><span class="s1">]}</span>
+                <span class="s1">}</span>
+
+
+<span class="s2">def </span><span class="s1">Main_Run(args):</span>
+    <span class="s1">number_sims = </span><span class="s3">1000</span>
+    <span class="s2">if </span><span class="s1">(</span><span class="s4">'sims' </span><span class="s2">in </span><span class="s1">args):</span>
+        <span class="s1">number_sims = args[</span><span class="s4">'sims'</span><span class="s1">]</span>
+
+    <span class="s0"># Run Asian:</span>
+    <span class="s1">asian_results_dict = {}</span>
+    <span class="s2">if </span><span class="s1">(</span><span class="s4">'Asian' </span><span class="s2">in </span><span class="s1">args):</span>
+
+        <span class="s2">for </span><span class="s1">task</span><span class="s2">, </span><span class="s1">params </span><span class="s2">in </span><span class="s1">Asian_Dict.items():</span>
+            <span class="s1">option_class = params[</span><span class="s4">'option'</span><span class="s1">]</span>
+            <span class="s1">payoff_class = params[</span><span class="s4">'payoff'</span><span class="s1">]</span>
+            <span class="s1">freq = params[</span><span class="s4">'freq'</span><span class="s1">]</span>
+            <span class="s1">times = get_times(freq)</span>
+
+            <span class="s1">payoff = payoff_class(K)</span>
+            <span class="s1">option = option_class(T</span><span class="s2">, </span><span class="s1">K</span><span class="s2">, </span><span class="s1">payoff)</span>
+            <span class="s1">_generator = PathGenerator(S</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">d</span><span class="s2">, </span><span class="s1">vol</span><span class="s2">, </span><span class="s1">times)</span>
+            <span class="s1">engine = ControlEngine(vol</span><span class="s2">, </span><span class="s1">d</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">S</span><span class="s2">, </span><span class="s1">option</span><span class="s2">, </span><span class="s1">_generator)  </span><span class="s0"># vol, d, r, spot, product, generator</span>
+            <span class="s1">engine.run_simulation(number_sims)</span>
+            <span class="s1">asian_results_dict[task] = (engine.option_price</span><span class="s2">, </span><span class="s1">engine.cum_avg_list</span><span class="s2">, </span><span class="s1">engine.sqrt_err)</span>
+
+    <span class="s0"># Run Barrier Sim:</span>
+    <span class="s1">barrier_results_dict = {}</span>
+    <span class="s2">if </span><span class="s1">(</span><span class="s4">'Barrier' </span><span class="s2">in </span><span class="s1">args):</span>
+        <span class="s2">for </span><span class="s1">task</span><span class="s2">, </span><span class="s1">params </span><span class="s2">in </span><span class="s1">Barrier_Dict.items():</span>
+            <span class="s1">option_class = params[</span><span class="s4">'option'</span><span class="s1">]</span>
+            <span class="s1">payoff_class = params[</span><span class="s4">'payoff'</span><span class="s1">]</span>
+            <span class="s1">freq = params[</span><span class="s4">'freq'</span><span class="s1">]</span>
+
+            <span class="s2">if </span><span class="s1">isinstance(freq</span><span class="s2">, </span><span class="s1">list):</span>
+                <span class="s1">times = np.array(freq)</span>
+            <span class="s2">else</span><span class="s1">:</span>
+                <span class="s1">times = get_times(freq)</span>
+            <span class="s1">payoff = payoff_class(K)</span>
+            <span class="s1">option = option_class(T</span><span class="s2">, </span><span class="s1">K</span><span class="s2">, </span><span class="s1">Barrier</span><span class="s2">, </span><span class="s1">payoff)</span>
+            <span class="s1">_generator = PathGenerator(S</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">d</span><span class="s2">, </span><span class="s1">vol</span><span class="s2">, </span><span class="s1">times)</span>
+            <span class="s1">engine = ControlEngine(vol</span><span class="s2">, </span><span class="s1">d</span><span class="s2">, </span><span class="s1">r</span><span class="s2">, </span><span class="s1">S</span><span class="s2">, </span><span class="s1">option</span><span class="s2">, </span><span class="s1">_generator)  </span><span class="s0"># vol, d, r, spot, product, generator</span>
+            <span class="s1">engine.run_simulation(number_sims)</span>
+            <span class="s1">barrier_results_dict[task] = (engine.option_price</span><span class="s2">, </span><span class="s1">engine.cum_avg_list</span><span class="s2">, </span><span class="s1">engine.sqrt_err)</span>
+
+    <span class="s0"># display results:</span>
+    <span class="s2">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">val </span><span class="s2">in </span><span class="s1">asian_results_dict.items():</span>
+        <span class="s1">print(</span><span class="s4">'Asian Task Results:'</span><span class="s1">)</span>
+        <span class="s1">print(</span><span class="s4">f'</span><span class="s2">{</span><span class="s1">key</span><span class="s2">} </span><span class="s4">Option Price </span><span class="s2">{</span><span class="s1">val[</span><span class="s3">0</span><span class="s1">]</span><span class="s2">} </span><span class="s4">and Error </span><span class="s2">{</span><span class="s1">val[</span><span class="s3">2</span><span class="s1">]</span><span class="s2">}</span><span class="s4">'</span><span class="s1">)</span>
+
+    <span class="s2">for </span><span class="s1">key</span><span class="s2">, </span><span class="s1">val </span><span class="s2">in </span><span class="s1">barrier_results_dict.items():</span>
+        <span class="s1">print(</span><span class="s4">'Barrier Task Results:'</span><span class="s1">)</span>
+        <span class="s1">print(</span><span class="s4">f'</span><span class="s2">{</span><span class="s1">key</span><span class="s2">} </span><span class="s4">Option Price </span><span class="s2">{</span><span class="s1">val[</span><span class="s3">0</span><span class="s1">]</span><span class="s2">} </span><span class="s4">and Error </span><span class="s2">{</span><span class="s1">val[</span><span class="s3">2</span><span class="s1">]</span><span class="s2">}</span><span class="s4">'</span><span class="s1">)</span>
+    <span class="s1">print(</span><span class="s4">'done'</span><span class="s1">)</span>
+
+
+<span class="s2">if </span><span class="s1">__name__ == </span><span class="s4">'__main__'</span><span class="s1">:</span>
+    <span class="s1">Main_Run({</span><span class="s4">'Asian'</span><span class="s1">: </span><span class="s3">1</span><span class="s2">, </span><span class="s4">'Barrier'</span><span class="s1">: </span><span class="s3">1</span><span class="s2">, </span><span class="s4">'sims'</span><span class="s1">: </span><span class="s3">10000</span><span class="s1">})</span>
+</pre>
+</body>
+</html>
